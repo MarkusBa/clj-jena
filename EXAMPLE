@@ -4,8 +4,18 @@
 ;; require the library
 (require '[clj-jena.core :as co])
 
-;; get the model to work on it
-(def model (co/get-tdb-model directory))
+;; the tdb classes to persist what we are entering
+(import '[com.hp.hpl.jena.tdb TDBFactory])
+(import '[com.hp.hpl.jena.query ReadWrite])
+
+;; the dataset we are operating on
+(def ds (TDBFactory/createDataset directory))
+
+;; starts the transaction
+(.begin ds (ReadWrite/WRITE))
+
+;; get the model to work with
+(def model (.getDefaultModel ds))
 
 ;; querystring to query all entries
 (def qs "select ?s ?p ?o where { ?s ?p ?o }")
@@ -13,19 +23,22 @@
 ;; uri for some random resource
 (def uri "http://somewhere/JohnSmith")
 
-;; the corresponding resourc
+;; the corresponding resource
 (def rs (co/create-resource model uri))
 
 ;; create some random property aka predicate to have something to show off
 (def pro (co/create-property model "http://www.example.com" "fullname"))
-#'user/pro
 
 ;; add the property to the resorce with some object
 (co/add-object rs pro "John Smith")
-#<ResourceImpl http://somewhere/JohnSmith>
 
-;; the query string now returs something
-user=> (co/select-query model qs)
-({:p #<PropertyImpl http://www.example.comfullname>, :s #<ResourceImpl 
-http://somewhere/JohnSmith>, :o #<LiteralImpl John Smith>})
+;; this is important so that the data is actually written to disk
+(.commit ds)
+
+;; close the datasource
+(.end ds)
+
+;; the query string now returns something, even after restarting
+(co/select-query model qs)
+
 
